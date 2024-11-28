@@ -30,26 +30,46 @@ pause_durations = []
 
 def categorize_key(key):
     """Helper function to categorize a key."""
-    if key in ['Key.backspace']:
-        return "delete"
-    elif key in ['Key.enter']:
-        return "enter"
-    elif hasattr(key, 'char') and key.char.isalpha():
-        return "letter"
-    elif hasattr(key, 'char') and key.char.isdigit():
-        return "number"
-    elif key in ['Key.left', 'Key.right', 'Key.up', 'Key.down']:
-        return "arrow"
-    elif key in ['Key.tab']:
-        return "tab"
-    elif key in ['Key.space']:
-        return "spacebar"
-    elif hasattr(key, 'char') and key.char in "!@#$%^&*()_+-=[]{}|;:'\",.<>?/":
-        return "punctuation"
-    elif hasattr(key, 'char') and key.char.isupper():
-        return "uppercase"
-    else:
-        return "special"
+    if isinstance(key, keyboard.Key):
+        # Handle special keys
+        if key == keyboard.Key.backspace:
+            return "delete"
+        elif key == keyboard.Key.enter:
+            return "enter"
+        elif key == keyboard.Key.tab:
+            return "tab"
+        elif key == keyboard.Key.space:
+            return "spacebar"
+        elif key in [keyboard.Key.up, keyboard.Key.down, keyboard.Key.left, keyboard.Key.right]:
+            return "arrow"
+        elif key in [
+            keyboard.Key.alt,
+            keyboard.Key.alt_l,
+            keyboard.Key.alt_r,
+            keyboard.Key.ctrl,
+            keyboard.Key.ctrl_l,
+            keyboard.Key.ctrl_r,
+            keyboard.Key.shift,
+            keyboard.Key.shift_l,
+            keyboard.Key.shift_r,
+            keyboard.Key.cmd,
+            keyboard.Key.cmd_r,
+        ]:
+            return "function"
+        else:
+            return "special"
+    elif hasattr(key, "char") and key.char is not None:
+        # Handle character keys
+        char = key.char
+        if char.isalpha():
+            if char.isupper():
+                return "uppercase"
+            return "letter"
+        elif char.isdigit():
+            return "number"
+        elif char in "!@#$%^&*()_+-=[]{}|;:'\",.<>?/":
+            return "punctuation"
+    return "special"
 
 
 # Event Handlers
@@ -74,7 +94,7 @@ def on_release(key):
         key_durations.append(duration)
 
         # Typing speed calculation
-        if hasattr(key, 'char') and key.char is not None:
+        if hasattr(key, "char") and key.char is not None:
             typing_speeds.append(1 / duration * 60 / 5)
 
         # Pause durations
