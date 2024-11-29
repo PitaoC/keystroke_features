@@ -12,9 +12,14 @@ down_down_times = []  # K3: Down-Down Time
 up_up_times = []  # K4: Up-Up Time
 time_since_last_keypress = []  # K5: Time Since Last Keypress
 typing_speeds = []  # K6: Typing Speed (words per minute)
+input_events = []  # K19: Input Rate (keys per minute)
+pause_times = []  # K20: Pause Rate
+total_key_events = 0  # K21: Total Key Events
+typing_amplitudes = []  # K22: Typing Amplitude (max dwell time)
 
-total_keys = 0
 last_key_release_time = None
+last_event_time = None
+total_keys = 0
 
 key_counts = {
     "delete": 0,
@@ -29,7 +34,6 @@ key_counts = {
     "punctuation": 0,
     "special": 0,
 }
-
 
 def categorize_key(key):
     """Helper function to categorize a key."""
@@ -72,15 +76,17 @@ def categorize_key(key):
             return "punctuation"
     return "special"
 
-
 def calculate_features(key):
-    """Calculate K1–K6 features dynamically."""
-    global last_key_release_time
+    """Calculate K1–K6, K19–K22 features dynamically."""
+    global last_key_release_time, last_event_time, total_key_events
 
+    current_time = time.time()
+    
     # K1: Duration (dwell time)
     if key in key_press_times and key in key_release_times:
         duration = key_release_times[key] - key_press_times[key]
         key_durations.append(duration)
+        typing_amplitudes.append(duration)  # For K22
 
     # K2: Latency (flight time)
     if len(key_release_times) > 1:
@@ -114,6 +120,21 @@ def calculate_features(key):
         typing_speed = 1 / key_durations[-1] * 60 / 5  # Approximate WPM
         typing_speeds.append(typing_speed)
 
+    # K19: Input Rate (keys per minute)
+    if last_event_time is not None:
+        input_rate = (current_time - last_event_time) * 60 / total_key_events if total_key_events > 0 else 0
+        input_events.append(input_rate)
+
+    # K20: Pause Rate (proportion of time spent between key presses)
+    if last_event_time is not None:
+        pause_duration = current_time - last_event_time
+        pause_times.append(pause_duration)
+
+    # K21: Total Key Events
+    total_key_events += 1
+
+    # Update last event time for the next calculation
+    last_event_time = current_time
 
 def on_press(key):
     """Handles key press events."""
@@ -125,13 +146,13 @@ def on_press(key):
     if category in key_counts:
         key_counts[category] += 1
 
+    calculate_features(key)
     update_ui()
 
 
 def on_release(key):
     """Handles key release events."""
     key_release_times[key] = time.time()
-
     calculate_features(key)
     update_ui()
 
@@ -147,6 +168,10 @@ def update_ui():
     k4_label.config(text=f"K4 (Up-Up): {up_up_times[-5:]}")
     k5_label.config(text=f"K5 (Time Since Last Keypress): {time_since_last_keypress[-5:]}")
     k6_label.config(text=f"K6 (Typing Speeds): {typing_speeds[-5:]}")
+    k19_label.config(text=f"K19 (Input Rate): {input_events[-5:]}")
+    k20_label.config(text=f"K20 (Pause Rate): {pause_times[-5:]}")
+    k21_label.config(text=f"K21 (Total Key Events): {total_key_events}")
+    k22_label.config(text=f"K22 (Typing Amplitude): {typing_amplitudes[-5:]}")
 
 
 # Listener Thread
@@ -159,7 +184,7 @@ def start_listener():
 # GUI Setup
 def create_ui():
     """Creates the tkinter UI."""
-    global total_keys_label, key_counts_label, k1_label, k2_label, k3_label, k4_label, k5_label, k6_label
+    global total_keys_label, key_counts_label, k1_label, k2_label, k3_label, k4_label, k5_label, k6_label, k19_label, k20_label, k21_label, k22_label
 
     root = tk.Tk()
     root.title("Keystroke Feature Tracker")
@@ -188,6 +213,18 @@ def create_ui():
 
     k6_label = tk.Label(root, text="K6 (Typing Speeds): []", font=("Arial", 12))
     k6_label.pack()
+
+    k19_label = tk.Label(root, text="K19 (Input Rate): []", font=("Arial", 12))
+    k19_label.pack()
+
+    k20_label = tk.Label(root, text="K20 (Pause Rate): []", font=("Arial", 12))
+    k20_label.pack()
+
+    k21_label = tk.Label(root, text="K21 (Total Key Events): []", font=("Arial", 12))
+    k21_label.pack()
+
+    k22_label = tk.Label(root, text="K22 (Typing Amplitude): []", font=("Arial", 12))
+    k22_label.pack()
 
     # Run the tkinter main loop
     root.mainloop()
